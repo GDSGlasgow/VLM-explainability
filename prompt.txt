@@ -1,0 +1,14 @@
+<image>
+
+Please estimate a perceived safety score for this neighbourhood. Give your score as a numeric value rom 0 (not safe at all) to 100 (not dangerous at all). 
+
+Safety should consider factors such as crime, traffic, or environmental hazards. 
+
+Some parts of the image might be masked and should be ignored. 
+
+You are permitted to provide brief reasoning, but should return your score in the following format so that it is easily extractable:
+
+```
+[{"estimated_score":<score:int>}]
+```
+

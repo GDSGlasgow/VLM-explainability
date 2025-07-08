@@ -1,0 +1,11 @@
+You are assessing the attractiveness of an urban scene.
+
+Some parts of the image may be masked (displayed in black). Ignore these areas when forming your judgment.
+
+Please consider factors such as greenery, walkability, safety, and aesthetics. Provide a brief explanation (1–2 sentences) of your assessment, and return your attractiveness score (0–100, where 0 = extremely unattractive and 100 = extremely attractive).
+
+Return your reasoning followed by a score in the following JSON format:
+[
+  {"estimated_score": <score>}
+]
+

@@ -1,0 +1,11 @@
+{
+"traffic": ["bicycle", "bus", "car", "motorcycle", "rider", "truck"],
+"street":["fence", "pole", "road", "sidewalk", "traffic light", "traffic sign"],
+"building":["building", "wall"],
+"vegetation" : ["vegetation", "terrain"],
+"person" : ["person"],
+"sky" : ["sky"], 
+"model_name" : "facebook/mask2former-swin-large-cityscapes-semantic",
+"max_combination" : 3,
+"label_data_path" : "cityscapes_labels.csv"
+}
