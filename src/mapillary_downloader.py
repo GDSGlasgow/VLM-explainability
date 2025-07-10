@@ -108,6 +108,8 @@ def get_sequence_from_coordinates(coordinates:tuple[float,float])->str:
     """
     #print(coordinates)
     lat, lon = coordinates[0], coordinates[1]
+    print(f'lat : {lat}')
+    print(f'lon : {lon}')
 
     data = mly.get_image_close_to(latitude=lat, longitude=lon).to_dict()
 
@@ -240,7 +242,7 @@ def main(coordinates_file:str, token_file:str, user_file:str):
             os.makedirs(save_path)
         # don't download new data if folder is already populated
         if len(os.listdir(save_path)) == 0:
-            download_sequence_images(sequence_id=sequence_id, save_path=save_path, limit=None)
+            download_sequence_images(sequence_id=sequence_id, save_path=save_path, limit=20)
         
 if __name__ == '__main__':
     main(coordinates_file='sample_coordinates.csv', 

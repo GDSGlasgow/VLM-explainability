@@ -3,6 +3,13 @@ keys/
 
 # data
 downloaded_images/
+images/
+results/
+unsloth_compiled_cache/
+
+*.ttf
+*.log
+*.err
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
