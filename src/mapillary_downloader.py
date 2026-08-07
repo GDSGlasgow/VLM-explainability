@@ -5,6 +5,7 @@ import random
 import requests
 import zoneinfo as zi
 from datetime import datetime
+from pathlib import Path
 from requests.models import Response
 # third party packages
 import mapillary.interface as mly
@@ -12,6 +13,9 @@ import pandas as pd
 from tqdm import tqdm
 from geopy import geocoders
 from sun_position_calculator import SunPositionCalculator, SunPhase
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 random.seed(2025)
 
@@ -236,7 +240,7 @@ def main(coordinates_file:str, token_file:str, user_file:str):
     for i, row in query_data.iterrows():
         coordinates = (row.latitude, row.longitude)
         sequence_id = get_sequence_from_coordinates(coordinates)
-        save_path = os.path.join('downloaded_images', row.city, sequence_id)
+        save_path = os.path.join(PROJECT_ROOT, 'downloaded_images', row.city, sequence_id)
         # make the directory if it doesn't exist already
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
@@ -245,7 +249,6 @@ def main(coordinates_file:str, token_file:str, user_file:str):
             download_sequence_images(sequence_id=sequence_id, save_path=save_path, limit=20)
         
 if __name__ == '__main__':
-    main(coordinates_file='sample_coordinates.csv', 
-         token_file='keys/MAPILLARY_TOKEN.txt',
-         user_file='keys/GEONAMES_USER.txt')
-        
+    main(coordinates_file=PROJECT_ROOT / 'input_data' / 'sample_coordinates.csv',
+         token_file=PROJECT_ROOT / 'keys' / 'MAPILLARY_TOKEN.txt',
+         user_file=PROJECT_ROOT / 'keys' / 'GEONAMES_USER.txt')

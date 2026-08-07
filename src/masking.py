@@ -2,7 +2,7 @@
 import requests
 import torch
 import argparse
-from PIL import Image
+from PIL import Image, ImageFilter, ImageOps
 from pathlib import Path
 import os
 import json
@@ -10,6 +10,10 @@ from json import JSONDecodeError
 from typing import Optional
 from copy import copy
 import itertools
+
+
+DEFAULT_BLUR_RADIUS = 18
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # third party imports
 from transformers import AutoImageProcessor, Mask2FormerForUniversalSegmentation
@@ -38,7 +42,10 @@ class Masker:
         self.config = self.load_config(config_path)
         self.model, self.processor = self.load_model(self.config.model_name)
         self.mask_categories = mask_categories
-        self.labels_df = pd.read_csv(self.config.label_data_path)
+        label_data_path = Path(self.config.label_data_path)
+        if not label_data_path.is_absolute():
+            label_data_path = PROJECT_ROOT / label_data_path
+        self.labels_df = pd.read_csv(label_data_path)
         
     def load_config(self, config_path:str|Path):
         """Loads the config JSON from the given path. Note - this does nto"""
@@ -105,7 +112,7 @@ class Masker:
         return table_row
     
     def generate_masks(self, image:Image):
-        """ Generates a combination of up to 3 of each of the categories of mask"""
+        """Generate masks for every configured combination of categories."""
         semantic_map = self.segment_image(image)
         print(semantic_map.shape)
         generated_masks = {}
@@ -128,7 +135,48 @@ class Masker:
         return generated_masks, combo_df
 
 
-def main(seq_path:str, config_path:str|Path):
+def blur_radius(value: str) -> int:
+    """Parse and validate a Gaussian blur radius from the command line."""
+    try:
+        radius = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("blur radius must be an integer") from exc
+    if not 0 <= radius <= 100:
+        raise argparse.ArgumentTypeError("blur radius must be between 0 and 100")
+    return radius
+
+
+def build_mask_fill(
+    image: Image.Image,
+    greyscale: bool = True,
+    radius: int = DEFAULT_BLUR_RADIUS,
+) -> Image.Image:
+    """Build the image used to replace pixels selected by a semantic mask."""
+    if not 0 <= radius <= 100:
+        raise ValueError("blur radius must be between 0 and 100")
+
+    image = image.convert("RGB")
+    mask_fill = ImageOps.grayscale(image).convert("RGB") if greyscale else image
+    return mask_fill.filter(ImageFilter.GaussianBlur(radius=radius))
+
+
+def apply_mask(
+    image: Image.Image,
+    mask: np.ndarray,
+    mask_fill: Image.Image,
+) -> Image.Image:
+    """Replace masked pixels with pixels from ``mask_fill``."""
+    image = image.convert("RGB")
+    keep_mask = Image.fromarray(np.uint8(np.clip(mask, 0, 1) * 255), mode="L")
+    return Image.composite(image, mask_fill, keep_mask)
+
+
+def main(
+    seq_path: str,
+    config_path: str | Path,
+    greyscale: bool = True,
+    radius: int = DEFAULT_BLUR_RADIUS,
+):
     """Uses the `Masker` class to produce masks for all images in the `seq_id` 
     folder. Images are saved in `images/masks/seq_id
     
@@ -136,13 +184,15 @@ def main(seq_path:str, config_path:str|Path):
         seq_path (str) : the path to the images in the sequence. 
         config_path (str|Path) : the path to the config file detailing the 
         constittuents of each masking category.
+        greyscale (bool) : whether masked areas should be converted to greyscale.
+        radius (int) : Gaussian blur radius, from 0 to 100 pixels.
     """
     # convert sequence path to Path
     if isinstance(seq_path, str):
         seq_path = Path(seq_path)
     # get just the sequence_id
     seq_id = seq_path.parts[-1]
-    save_path = Path('images', 'masks', seq_id)
+    save_path = PROJECT_ROOT / 'images' / 'masks' / seq_id
     
     # set up masker
     masker = Masker(config_path, mask_categories = ['building', 'person', 'vegetation', 'street', 'traffic', 'sky'])
@@ -157,11 +207,10 @@ def main(seq_path:str, config_path:str|Path):
         Path(mask_path).mkdir(parents=True, exist_ok=True)
         # create masks
         masks, combo_df = masker.generate_masks(image)
-        # jointogether masks and apply to image
+        mask_fill = build_mask_fill(image, greyscale=greyscale, radius=radius)
+        # Apply each semantic mask to the image.
         for label, mask in masks.items():
-            masked_array = image * np.stack([mask]*3, axis=2)
-            # save image as jpg
-            masked_image = Image.fromarray(np.uint8(masked_array))
+            masked_image = apply_mask(image, mask, mask_fill)
             masked_image.save(Path(mask_path, f'{label}.jpg'))
         
         image.save(Path(mask_path, 'unmasked.jpg'))
@@ -188,7 +237,34 @@ if __name__ == "__main__":
                         '--config', 
                         dest='config',
                         help='Path to JSON file showing class constituents.')
+
+    greyscale_group = parser.add_mutually_exclusive_group()
+    greyscale_group.add_argument(
+        '--greyscale',
+        dest='greyscale',
+        action='store_true',
+        help='Convert masked areas to greyscale (default).',
+    )
+    greyscale_group.add_argument(
+        '--no-greyscale',
+        dest='greyscale',
+        action='store_false',
+        help='Keep colour in masked areas.',
+    )
+    parser.set_defaults(greyscale=True)
+
+    parser.add_argument(
+        '--blur-radius',
+        type=blur_radius,
+        default=DEFAULT_BLUR_RADIUS,
+        help=f'Gaussian blur radius from 0 to 100 (default: {DEFAULT_BLUR_RADIUS}).',
+    )
     
     args = parser.parse_args()
     
-    main(args.seq_path, args.config)
+    main(
+        args.seq_path,
+        args.config,
+        greyscale=args.greyscale,
+        radius=args.blur_radius,
+    )

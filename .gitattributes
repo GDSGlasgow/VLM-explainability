@@ -1,0 +1,20 @@
+* text=auto
+
+# Keep scripts portable when the repository is edited on Windows.
+*.sh text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.ipynb text eol=lf
+*.csv text eol=lf
+
+# Binary formats should never receive line-ending conversion.
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.pdf binary
+*.zip binary
+*.pt binary
+*.pth binary
+*.safetensors binary

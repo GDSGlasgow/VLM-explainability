@@ -1,15 +1,127 @@
-# keys
+# Secrets
 keys/
+.env.*
+!.env.example
+.streamlit/secrets.toml
+credentials*.json
+service-account*.json
 
-# data
+# Raw and generated data
 downloaded_images/
 images/
-results/
+results/*
+!results/.gitkeep
+plots/*
+!plots/.gitkeep
+examples/
+paper/figures/
+paper/source/
+logs/*
+!logs/.gitkeep
 unsloth_compiled_cache/
+models/
+checkpoints/
+wandb/
+runs/
+.huggingface/
+.triton/
+.nv/
 
+# External checkout (has its own Git history and remote)
+vlm_annotation_tool/
+
+# Tables are ignored by default. Keep only the public semantic-label mapping
+# and documentation; coordinates, sequence IDs, and other study inputs stay local.
+*.csv
+*.tsv
+*.jsonl
+*.ndjson
+input_data/*
+!input_data/README.md
+!input_data/cityscapes_labels.csv
+
+# Images and media
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.bmp
+*.tif
+*.tiff
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.wav
+*.mp3
+*.m4a
+*.flac
+
+# Documents, fonts, archives, and data binaries
+*.pdf
+*.ppt
+*.pptx
 *.ttf
+*.otf
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+*.gz
+*.bz2
+*.xz
+*.rar
+*.zst
+*.npy
+*.npz
+*.parquet
+*.feather
+*.arrow
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+*.doc
+*.docx
+*.xls
+*.xlsx
+
+# Model weights and checkpoints
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.bin
+*.gguf
+*.ggml
+*.tflite
+*.pb
+*.engine
+*.trt
+
+# Compiled executables and libraries
+*.exe
+*.dll
+*.dylib
+*.pyd
+*.o
+*.obj
+*.a
+*.lib
+
+# Runtime logs and local databases
 *.log
 *.err
+*.out
+slurm-*.out
+*.db
+*.sqlite
+*.sqlite3
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -151,6 +263,7 @@ celerybeat.pid
 .env
 .envrc
 .venv
+.conda/
 env/
 venv/
 ENV/
@@ -199,7 +312,13 @@ cython_debug/
 #  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
 #  and can be added to the global gitignore or merged into this file. However, if you prefer, 
 #  you could uncomment the following to ignore the entire vscode folder
-# .vscode/
+.vscode/
+
+# JetBrains IDEs and operating-system metadata
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
 
 # Ruff stuff:
 .ruff_cache/
