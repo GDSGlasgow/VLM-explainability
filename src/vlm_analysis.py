@@ -9,8 +9,11 @@ import torchvision.transforms as T
 import numpy as np
 
 
-from vlm_utils import load_model, load_image
+from vlm_utils import build_generation_config, load_model, load_image
 import json_repair
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 class ImageAnalyzer:
@@ -137,7 +140,7 @@ class ResultsManager:
 
 def main(seq_id, prompt_path):
     
-    seq_path = Path('images', 'masks', seq_id)
+    seq_path = PROJECT_ROOT / 'images' / 'masks' / seq_id
     
     #metadata = pd.read_csv(Path(seq_path, 'metadata.csv'))
     #metadata['image_id'] = metadata['image_id'].astype(str) 
@@ -146,7 +149,7 @@ def main(seq_id, prompt_path):
         question = f.read()
 
     model, tokenizer = load_model("OpenGVLab/InternVL3-38B", quant=True)
-    config = dict(max_new_tokens=512, do_sample=False, pad_token_id=tokenizer.eos_token_id)
+    config = build_generation_config(tokenizer)
     
     analyzer = ImageAnalyzer(model, tokenizer, config)
     results_manager = ResultsManager(seq_path)
@@ -155,7 +158,7 @@ def main(seq_id, prompt_path):
     for path in tqdm(image_paths):
         scores, responses = analyzer.analyze_all_masks(path, question)
         results_manager.add_image_results(path.stem, scores, responses)
-        results_manager.save_results(Path(f'results/{seq_id}.csv'))
+        results_manager.save_results(PROJECT_ROOT / 'results' / f'{seq_id}.csv')
     
     
     

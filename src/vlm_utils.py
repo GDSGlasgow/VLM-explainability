@@ -1,13 +1,29 @@
+import math
+
 import torch
 import torchvision.transforms as T
 import numpy as np
 #from decord import VideoReader, cpu
 from PIL import Image
 from torchvision.transforms.functional import InterpolationMode
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoConfig, AutoModel, AutoTokenizer, BitsAndBytesConfig
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
+DEFAULT_GENERATION_CONFIG = {
+    "max_new_tokens": 512,
+    "do_sample": True,
+    "temperature": 0.2,
+    "top_p": 0.95,
+}
+
+
+def build_generation_config(tokenizer):
+    """Return the shared InternVL generation settings for this project."""
+    return {
+        **DEFAULT_GENERATION_CONFIG,
+        "pad_token_id": tokenizer.eos_token_id,
+    }
 
 def build_transform(input_size):
     
@@ -20,14 +36,60 @@ def build_transform(input_size):
     ])
     return transform
 
+def build_internvl_device_map(model_name, world_size=None):
+    """Build InternVL's recommended asymmetric map for multi-GPU inference."""
+    if world_size is None:
+        world_size = torch.cuda.device_count()
+    if world_size < 2:
+        return None
+
+    config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+    num_layers = config.llm_config.num_hidden_layers
+
+    # The vision encoder is placed on GPU 0, so InternVL treats that GPU as
+    # having half the capacity available for language-model layers.
+    layers_per_gpu = math.ceil(num_layers / (world_size - 0.5))
+    layer_allocations = [layers_per_gpu] * world_size
+    layer_allocations[0] = math.ceil(layers_per_gpu * 0.5)
+
+    device_map = {}
+    layer_index = 0
+    for gpu_index, allocation in enumerate(layer_allocations):
+        for _ in range(allocation):
+            if layer_index >= num_layers:
+                break
+            device_map[f"language_model.model.layers.{layer_index}"] = gpu_index
+            layer_index += 1
+
+    device_map.update({
+        "vision_model": 0,
+        "mlp1": 0,
+        "language_model.model.embed_tokens": 0,
+        "language_model.model.norm": 0,
+        "language_model.model.rotary_emb": 0,
+        "language_model.lm_head": 0,
+    })
+    # InternVL requires the first and last language layers on the same GPU.
+    device_map[f"language_model.model.layers.{num_layers - 1}"] = 0
+    return device_map
+
+
 def load_model(model_name, quant=True):
-    model = AutoModel.from_pretrained(
-        model_name,
-        torch_dtype=torch.bfloat16,
-        load_in_8bit=quant,
-        low_cpu_mem_usage=True,
-        use_flash_attn=True,
-        trust_remote_code=True).eval()
+    model_kwargs = {
+        "torch_dtype": torch.bfloat16,
+        "low_cpu_mem_usage": True,
+        "use_flash_attn": True,
+        "trust_remote_code": True,
+    }
+    if quant:
+        model_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_8bit=True)
+
+    device_map = build_internvl_device_map(model_name)
+    if device_map is not None:
+        model_kwargs["device_map"] = device_map
+        print(f"Loading {model_name} across {torch.cuda.device_count()} GPUs.")
+
+    model = AutoModel.from_pretrained(model_name, **model_kwargs).eval()
     
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, use_fast=False)
     

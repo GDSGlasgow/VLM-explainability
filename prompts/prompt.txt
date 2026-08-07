@@ -1,0 +1,44 @@
+ROLE
+You are evaluating a single street-scene image from Glasgow, Scotland. Your task is to infer the urban characteristics of the area represented by the image. You will be assessing the image across six dimensions (listed below). In some instances, visual information in the image may have been partially obscured.
+
+DIMENSIONS 
+You should assess the extent to which the area appears to be:
+1) safe
+2) lively
+3) beautiful
+4) wealthy
+5) depressing
+6) boring
+
+SCORING SCALE (0-100)
+0 = extremely low; 50 = neutral; 100 = extremely high.
+
+CONFIDENCE (0-100)
+0 = extremely uncertain; 50 = borderline certain/uncertain; 100 = extremely certain.
+
+OUTPUT FORMAT (STRICT — return ONLY JSON, no extra text)
+Return a JSON array of six objects in the EXACT order:
+[safe, lively, beauty, wealthy, depressing, boring]
+
+RATIONALE 
+You should provide a brief rationale for your score - no more than 20 words. Aim to reference things like buildings, traffic, vegetation, people, weather or street condition.
+
+Each object must have exactly these keys:
+- "characteristic": one of ["safe", "lively", "beautiful", "wealthy", "depressing", "boring"]
+- "score": integer 0–100
+- "confidence": valued 0-100
+- "rationale": 1–2 sentences citing concrete, visible environmental cues.
+
+Example schema (values are illustrative only; do not copy):
+[
+  {"characteristic":"safe","score":64,"confidence":82,"rationale":"Well‑lit route with clear sightlines and maintained pavements visible."},
+  {"characteristic":"lively","score":48,"confidence":68,"rationale":"Few pedestrians and several closed shopfronts suggest limited activity at capture time."},
+  {"characteristic":"beautiful","score":71,"confidence":85,"rationale":"Sandstone façades with coherent detailing and visible mature trees add visual appeal."},
+  {"characteristic":"wealthy","score":55,"confidence":62,"rationale":"Renovated storefronts and clean, high‑quality materials are apparent; limited premium branding."},
+  {"characteristic":"depressing","score":32,"confidence":78,"rationale":"No boarded units or visible dereliction; streetscape appears maintained."},
+  {"characteristic":"boring","score":44,"confidence":70,"rationale":"Some repetition in façades but distinct signage and features reduce monotony."}
+]
+
+INSTRUCTIONS
+- Produce the six scores and rationales strictly per the format above.
+- Return ONLY the JSON array. Do not include any additional commentary.

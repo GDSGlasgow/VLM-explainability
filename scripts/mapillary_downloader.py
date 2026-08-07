@@ -5,6 +5,7 @@ import random
 import requests
 import zoneinfo as zi
 from datetime import datetime
+from pathlib import Path
 from requests.models import Response
 # third party packages
 import mapillary.interface as mly
@@ -12,6 +13,9 @@ import pandas as pd
 from tqdm import tqdm
 from geopy import geocoders
 from sun_position_calculator import SunPositionCalculator, SunPhase
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 random.seed(2025)
 
@@ -170,11 +174,12 @@ def save_image(image_response:Response, save_path:str, image_id:str, chunk_size:
         for chunk in image_response.iter_content(chunk_size=chunk_size):
             handler.write(chunk)
             
-def build_metadata_row(image_id:str, sequence_id:str, data:dict)->dict:
+def build_metadata_row(image_file:str, image_id:str, sequence_id:str, data:dict)->dict:
     lon, lat = data['geometry']['coordinates']
     timestamp = data['captured_at']
     local_time = get_local_time(timestamp, (lat, lon))
-    metadata_row = {'image_id':image_id, 
+    metadata_row = {'image_file':image_file,
+                'image_id':image_id, 
                 'sequence_id':sequence_id,
                 'lon':lon, 
                 'lat':lat,
@@ -191,7 +196,7 @@ def download_sequence_images(sequence_id:int, save_path:str, limit:int=10):
     seq_out = requests.get(seq_url)
     image_ids = [d['id'] for d in seq_out.json()['data']]
     print(f'Dowloading images for sequence {sequence_id}')
-    for image_id in tqdm(image_ids[:limit]):
+    for i, image_id in tqdm(enumerate(image_ids[:limit])):
         
         url = build_url(base_url=f'https://graph.mapillary.com/{image_id}', 
                         fields='thumb_2048_url,captured_at,geometry')
@@ -207,9 +212,10 @@ def download_sequence_images(sequence_id:int, save_path:str, limit:int=10):
                 # skip if no response
                 continue
             # save each image with ID as filename to directory by sequence ID
-            save_image(image_response, save_path, image_id)
+            
+            save_image(image_response, save_path, i)
             # add metadata
-            metadata.append(build_metadata_row(image_id, sequence_id, data))
+            metadata.append(build_metadata_row(f'{i}.jpg', image_id, sequence_id, data))
             
     metadata_df = pd.DataFrame(metadata)
     metadata_df.to_csv(os.path.join(save_path, 'metadata.csv'), index=False)
@@ -217,7 +223,7 @@ def download_sequence_images(sequence_id:int, save_path:str, limit:int=10):
             
         
     
-def main(coordinates_file:str, token_file:str, user_file:str):
+def main_from_coords(coordinates_file:str, token_file:str, user_file:str):
     """Runs full dowload sequence.
 
     Args:
@@ -241,9 +247,28 @@ def main(coordinates_file:str, token_file:str, user_file:str):
         # don't download new data if folder is already populated
         if len(os.listdir(save_path)) == 0:
             download_sequence_images(sequence_id=sequence_id, save_path=save_path, limit=None)
+
+def main_from_seq(seq_id_file:str, token_file:str, user_file:str):
+    set_mapillary_token(token_file)
+    set_geocoder(user_file)
+    
+    query_data = pd.read_csv(seq_id_file)
+    
+    for i, row in query_data.iterrows():
+        sequence_id = row.sequence_id
+        save_path = os.path.join(
+            PROJECT_ROOT, 'downloaded_images', 'from_sequence', row.city, sequence_id
+        )
+        # make the directory if it doesn't exist already
+        if not os.path.isdir(save_path):
+            os.makedirs(save_path)
+        # don't download new data if folder is already populated
+        if len(os.listdir(save_path)) == 0:
+            download_sequence_images(sequence_id=sequence_id, save_path=save_path, limit=None)
+    
         
 if __name__ == '__main__':
-    main(coordinates_file='sample_coordinates.csv', 
-         token_file='keys/MAPILLARY_TOKEN.txt',
-         user_file='keys/GEONAMES_USER.txt')
+    main_from_seq(seq_id_file=PROJECT_ROOT / 'input_data' / 'sequence_keys.csv',
+                  token_file=PROJECT_ROOT / 'keys' / 'MAPILLARY_TOKEN.txt',
+                  user_file=PROJECT_ROOT / 'keys' / 'GEONAMES_USER.txt')
         
